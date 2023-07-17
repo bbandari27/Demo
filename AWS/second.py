@@ -12,13 +12,13 @@ def assume_role(role_arn):
         aws_session_token=response['Credentials']['SessionToken']
     )
 
-def check_and_disable_cloudtrail(session, account_id):
-    ct_client = session.client('cloudtrail')
+def check_and_disable_cloudtrail(session, account_id, region):
+    ct_client = session.client('cloudtrail', region_name=region)
     trails = ct_client.describe_trails()['trailList']
 
     for trail in trails:
         if trail['Name'] == 'elluciantrailv2':
-            print(f"Found 'elluciantrailv2' CloudTrail in account {account_id}.")
+            print(f"Found 'elluciantrailv2' CloudTrail in account {account_id}, region {region}.")
             if trail['IsLogging']:
                 print("Disabling 'elluciantrailv2' CloudTrail...")
                 ct_client.stop_logging(Name=trail['Name'])
@@ -27,7 +27,7 @@ def check_and_disable_cloudtrail(session, account_id):
                 print("'elluciantrailv2' CloudTrail is already disabled.")
             break
     else:
-        print(f"'elluciantrailv2' CloudTrail not found in account {account_id}.")
+        print(f"'elluciantrailv2' CloudTrail not found in account {account_id}, region {region}.")
 
 def main():
     control_tower_role_name = 'controltowerexecutionrole'
@@ -44,7 +44,15 @@ def main():
             try:
                 iam_session = assume_role(f"arn:aws:iam::{account_id}:role/{control_tower_role_name}")
                 print(f"Assumed role '{control_tower_role_name}' in account {account_id}.")
-                check_and_disable_cloudtrail(iam_session, account_id)
+
+                # Get all available regions for the account
+                ec2_client = iam_session.client('ec2')
+                regions = [region['RegionName'] for region in ec2_client.describe_regions()['Regions']]
+
+                for region in regions:
+                    print(f"Checking region: {region}")
+                    check_and_disable_cloudtrail(iam_session, account_id, region)
+
             except Exception as e:
                 print(f"Error occurred in account {account_id}: {e}")
 
