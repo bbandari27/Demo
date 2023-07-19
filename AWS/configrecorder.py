@@ -86,7 +86,7 @@ def move_account_to_managed_transition(org_client, account_id):
         print(f"Failed to move account {account_id} to 'managed-transition' OU: {e}")
 
 control_tower_role_name = 'AWSControlTowerExecution'
-ou_ids = ['ou-tpfl-yzh2jwec', 'ou-tpfl-9149izqy', 'ou-tpfl-5881urnf', 'ou-tpfl-rl5fan53']
+ou_ids = ['ou-1', 'ou-2', 'ou-3', 'ou-4']
 
 for ou_id in ou_ids:
     print(f"Checking accounts in OU {ou_id}...")
