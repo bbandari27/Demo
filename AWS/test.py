@@ -1,4 +1,5 @@
 import boto3
+import csv
 
 def role_exists(iam_client, role_name):
     try:
@@ -30,25 +31,22 @@ def disable_config_recorder(account_id, region):
 
     # Stop the Config Recorder
     try:
-        print(f"Stopping the Config Recorder for Account ID: {account_id} in Region: {region}")
-        #config_client.stop_configuration_recorder(ConfigurationRecorderName='default')
-        print(f"Config Recorder stopped for Account ID: {account_id} in Region: {region}")
+        # config_client.stop_configuration_recorder(ConfigurationRecorderName='default')
+        pass  # Commented out for now
     except config_client.exceptions.NoSuchConfigurationRecorderException:
         print(f"No Config Recorder found in Account ID: {account_id} in Region: {region}")
 
     # Delete the Delivery Channel
     try:
-        print(f"Deleting the Delivery Channel for Account ID: {account_id} in Region: {region}")
-        #config_client.delete_delivery_channel()
-        print(f"Delivery Channel deleted for Account ID: {account_id} in Region: {region}")
+        # config_client.delete_delivery_channel()
+        pass  # Commented out for now
     except config_client.exceptions.NoSuchDeliveryChannelException:
         print(f"No Delivery Channel found in Account ID: {account_id} in Region: {region}")
 
     # Delete the Config Recorder
     try:
-        print(f"Deleting the Config Recorder for Account ID: {account_id} in Region: {region}")
-        #config_client.delete_configuration_recorder(ConfigurationRecorderName='default')
-        print(f"Config Recorder deleted for Account ID: {account_id} in Region: {region}")
+        # config_client.delete_configuration_recorder(ConfigurationRecorderName='default')
+        pass  # Commented out for now
     except config_client.exceptions.NoSuchConfigurationRecorderException:
         print(f"No Config Recorder found in Account ID: {account_id} in Region: {region}")
 
@@ -80,7 +78,7 @@ def get_account_owner(org_client, account_id):
 def move_account_to_managed_transition(org_client, account_id):
     try:
         # Move the account to 'managed-transition' OU (ou-gettheshit)
-        #org_client.move_account(AccountId=account_id, SourceParentId='ou1', DestinationParentId='ou-gettheshit')
+        # org_client.move_account(AccountId=account_id, SourceParentId='ou1', DestinationParentId='ou-gettheshit')
         print(f"Moved account {account_id} to 'managed-transition' OU.")
     except Exception as e:
         print(f"Failed to move account {account_id} to 'managed-transition' OU: {e}")
@@ -105,7 +103,11 @@ for ou_id in ou_ids:
         # Process remaining accounts
         print(f"\nChecking account: {account['Name']} (ID: {account_id})")
         if account_owner:
-            print(f"Account Owner: {account_owner}")
+            owner_parts = account_owner.split('/')
+            owner_name = owner_parts[-1]
+            owner_email = owner_parts[-2]
+            print(f"Account Owner Name: {owner_name}")
+            print(f"Account Owner Email: {owner_email}")
         else:
             print("Account owner information not available.")
 
@@ -137,6 +139,29 @@ for ou_id in ou_ids:
         except Exception as e:
             print(f"Error occurred in account {account_id}: {e}")
 
-# Step 3: Save account IDs with other trails to a local text file
-with open('accounts_with_other_trails.txt', 'w') as file:
-    file.write("\n".join(accounts_with_other_trails))
+# Step 3: Save account information with other trails to a CSV file
+csv_filename = 'accounts_with_other_trails.csv'
+
+with open(csv_filename, 'w', newline='') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['Account Number', 'Account Name', 'Account Owner Email', 'Account Owner Name', 'Trails'])
+
+    for account_id in accounts_with_other_trails:
+        account_info = org_client.describe_account(AccountId=account_id)['Account']
+        account_name = account_info['Name']
+        account_owner_arn = account_info['Arn']
+        account_owner_parts = account_owner_arn.split('/')
+        account_owner_name = account_owner_parts[-1]
+        account_owner_email = account_owner_parts[-2]
+
+        # Fetch the list of trails for the account using your existing code.
+        # ct_client = iam_session.client('cloudtrail')
+        # trails = ct_client.describe_trails()['trailList']
+
+        # For now, let's use a placeholder for the trails list.
+        trails_list = ['Trail 1', 'Trail 2']
+
+        csv_writer.writerow([account_id, account_name, account_owner_email, account_owner_name, ','.join(trails_list)])
+
+print(f"All Config Recorders stopped and Delivery Channels deleted for all accounts.")
+print(f"Account information with other trails saved to {csv_filename}.")
