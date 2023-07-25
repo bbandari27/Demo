@@ -3,18 +3,18 @@ from botocore.exceptions import ClientError
 
 def is_tls_enabled(bucket_name, s3_client):
     try:
-        bucket_policy_status = s3_client.get_bucket_policy_status(Bucket=bucket_name)
-        policy_status = bucket_policy_status['PolicyStatus']
-        if not policy_status.get('IsPublic'):
-            # Check if the bucket policy includes a statement requiring TLS
-            for statement in policy_status['Policy']['Statement']:
-                if (
-                    'Action' in statement and 's3:*' in statement['Action'] and
-                    'Condition' in statement and 'Bool' in statement['Condition'] and
-                    'aws:SecureTransport' in statement['Condition']['Bool'] and
-                    statement['Condition']['Bool']['aws:SecureTransport'] == 'false'
-                ):
-                    return False
+        bucket_policy = s3_client.get_bucket_policy(Bucket=bucket_name)
+        statements = bucket_policy['Policy']['Statement']
+
+        # Check if the bucket policy includes a statement requiring TLS
+        for statement in statements:
+            if (
+                'Action' in statement and 's3:*' in statement['Action'] and
+                'Condition' in statement and 'Bool' in statement['Condition'] and
+                'aws:SecureTransport' in statement['Condition']['Bool'] and
+                statement['Condition']['Bool']['aws:SecureTransport'] == 'false'
+            ):
+                return False
 
         return True
 
