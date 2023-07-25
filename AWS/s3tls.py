@@ -1,10 +1,12 @@
 import boto3
+import json
 from botocore.exceptions import ClientError
 
 def is_tls_enabled(bucket_name, s3_client):
     try:
-        bucket_policy = s3_client.get_bucket_policy(Bucket=bucket_name)
-        statements = bucket_policy['Policy']['Statement']
+        bucket_policy_str = s3_client.get_bucket_policy(Bucket=bucket_name)['Policy']
+        bucket_policy = json.loads(bucket_policy_str)
+        statements = bucket_policy['Statement']
 
         # Check if the bucket policy includes a statement requiring TLS
         for statement in statements:
