@@ -1,1 +1,92 @@
+# vars.tf
 
+variable "instance_name" {
+  description = "The name of the AWS instance"
+  default     = "bamboo.prod.kabbage.com"
+}
+
+variable "vpc_id" {
+  description = "The ID of the VPC"
+  default     = "vpc-79b13a00"
+}
+
+variable "subnet_name" {
+  description = "The name of the subnet"
+  default     = "sn_private_tools"
+}
+
+variable "subnets" {
+  description = "List of subnet IDs"
+  type        = list(string)
+  default     = ["subnet-f79bdfbf", "subnet-c88f03e4", "subnet-7744c02d"]
+}
+
+# main.tf
+
+data "aws_instance" "target_instance" {
+  filter {
+    name   = "tag:Name"
+    values = [var.instance_name]  
+  }
+}
+
+data "aws_subnet" "private" {
+  vpc_id = var.vpc_id
+
+  filter {
+    name   = "tag:Name"
+    values = [var.subnet_name]  
+  }
+}
+
+resource "aws_lb" "internal" {
+  name               = "Bamboo-Internal-NLB"
+  internal           = true
+  load_balancer_type = "network" 
+  subnets            = data.aws_subnet.private.ids
+  enable_deletion_protection = true 
+  tags = {
+    Name = "Bamboo-Internal-NLB"  
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.internal.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.target.arn
+  }
+}
+
+resource "aws_lb_target_group" "target" {
+  name                      = "Bamboo-Internal-NLB-tg"
+  port                      = 8085
+  protocol                  = "HTTP"
+  vpc_id                    = var.vpc_id
+  health_check_protocol     = "HTTP"
+  health_check_port         = 8085
+  health_check_enabled      = true
+  health_check_interval     = 30
+  health_check_timeout      = 5
+  healthy_threshold         = 2
+  unhealthy_threshold       = 2
+  health_check_path         = "/"
+  matcher                   = "200-499"
+  target_type               = "instance"
+  protocol_version          = "HTTP1"
+  target_group_attributes = [
+    {
+      key   = "deregistration_delay.timeout_seconds"
+      value = "30"
+    }
+  ]
+}
+
+resource "aws_lb_target_group_attachment" "default" {
+  target_group_arn = aws_lb_target_group.target.arn
+  target_id        = data.aws_instance.target_instance.ids[0]
+  port             = 8085
+}
